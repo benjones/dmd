@@ -582,7 +582,7 @@ extern (C++) final class CPPNamespaceDeclaration : AttribDeclaration
 extern (C++) final class ProtDeclaration : AttribDeclaration
 {
     Prot protection;                /// the visibility
-    Identifiers* pkg_identifiers;   /// identifiers for `package(foo.bar)` or null
+    Identifiers pkg_identifiers;   /// identifiers for `package(foo.bar)` or null
 
     /**
      * Params:
@@ -603,15 +603,15 @@ extern (C++) final class ProtDeclaration : AttribDeclaration
      *  pkg_identifiers = list of identifiers for a qualified package name
      *  decl = declarations which are affected by this protection attribute
      */
-    extern (D) this(const ref Loc loc, Identifiers* pkg_identifiers, Dsymbols* decl)
+    extern (D) this(const ref Loc loc, Identifiers pkg_identifiers, Dsymbols* decl)
     {
         super(loc, null, decl);
         this.protection.kind = Prot.Kind.package_;
-        this.pkg_identifiers = pkg_identifiers;
-        if (pkg_identifiers !is null && pkg_identifiers.dim > 0)
+        this.pkg_identifiers = pkg_identifiers.move();
+        if (pkg_identifiers.dim > 0)
         {
             Dsymbol tmp;
-            Package.resolve(pkg_identifiers, &tmp, null);
+            Package.resolve(pkg_identifiers[], &tmp, null);
             protection.pkg = tmp ? tmp.isPackage() : null;
         }
     }
@@ -620,26 +620,26 @@ extern (C++) final class ProtDeclaration : AttribDeclaration
     {
         assert(!s);
         if (protection.kind == Prot.Kind.package_)
-            return new ProtDeclaration(this.loc, pkg_identifiers, Dsymbol.arraySyntaxCopy(decl));
+            return new ProtDeclaration(this.loc, pkg_identifiers.copyAsValue(), Dsymbol.arraySyntaxCopy(decl));
         else
             return new ProtDeclaration(this.loc, protection, Dsymbol.arraySyntaxCopy(decl));
     }
 
     override Scope* newScope(Scope* sc)
     {
-        if (pkg_identifiers)
+        if (pkg_identifiers.dim > 0)
             dsymbolSemantic(this, sc);
         return createNewScope(sc, sc.stc, sc.linkage, sc.cppmangle, this.protection, 1, sc.aligndecl, sc.inlining);
     }
 
     override void addMember(Scope* sc, ScopeDsymbol sds)
     {
-        if (pkg_identifiers)
+        if (pkg_identifiers.dim > 0)
         {
             Dsymbol tmp;
-            Package.resolve(pkg_identifiers, &tmp, null);
+            Package.resolve(pkg_identifiers[], &tmp, null);
             protection.pkg = tmp ? tmp.isPackage() : null;
-            pkg_identifiers = null;
+            pkg_identifiers.setDim(0);
         }
         if (protection.kind == Prot.Kind.package_ && protection.pkg && sc._module)
         {

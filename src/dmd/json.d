@@ -497,14 +497,10 @@ public:
         objectStart();
         propertyStart("name");
         stringStart();
-        if (s.packages && s.packages.dim)
+        foreach (const pid; s.packages)
         {
-            for (size_t i = 0; i < s.packages.dim; i++)
-            {
-                const pid = (*s.packages)[i];
                 stringPart(pid.toString());
                 buf.writeByte('.');
-            }
         }
         stringPart(s.id.toString());
         stringEnd();

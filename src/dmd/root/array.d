@@ -55,6 +55,26 @@ public:
         if (data.ptr != &smallarray[0])
             mem.xfree(data.ptr);
     }
+
+    ///Allow the array to be passed to functions by value, since it's not copyable
+    Array move()
+    {
+        Array ret;
+        ret.length = length;
+        if (data.ptr == smallarray.ptr)
+        {
+            ret.smallarray[0..length] = data[0..length];
+            ret.data = ret.smallarray[];
+        }
+        else
+        {
+            ret.data = data;
+            data = smallarray[]; //forget its ptr so it doesn't get deallocated
+        }
+        length = 0;
+        return ret;
+    }
+
     ///returns elements comma separated in []
     extern(D) const(char)[] toString() const
     {
@@ -274,6 +294,14 @@ public:
         return a;
     }
 
+    Array!T copyAsValue() const pure nothrow
+    {
+        auto a = Array!T(length);
+        memcpy(a.data.ptr, data.ptr, length * T.sizeof);
+        return a;
+    }
+
+
     void shift(T ptr) pure nothrow
     {
         reserve(1);
@@ -415,6 +443,25 @@ unittest
     foreach(e; arrayA)
         assert(e == 0);
 }
+
+
+unittest
+{
+    auto arrayA = Array!size_t();
+    foreach (i; 0..5)
+    {
+        arrayA.push(i);
+    }
+    auto arrayB = arrayA.move();
+    assert(arrayA.dim == 0);
+    assert(arrayB.dim == 5);
+    foreach (i, ab; arrayB)
+    {
+        assert(ab == i);
+    }
+
+}
+
 
 /**
  * Exposes the given root Array as a standard D array.

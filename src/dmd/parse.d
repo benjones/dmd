@@ -403,13 +403,11 @@ final class Parser(AST) : Lexer
                 goto Lerr;
             }
 
-            AST.Identifiers* a = null;
+            AST.Identifiers a;
             Identifier id = token.ident;
 
             while (nextToken() == TOK.dot)
             {
-                if (!a)
-                    a = new AST.Identifiers();
                 a.push(id);
                 nextToken();
                 if (token.value != TOK.identifier)
@@ -420,7 +418,7 @@ final class Parser(AST) : Lexer
                 id = token.ident;
             }
 
-            md = new AST.ModuleDeclaration(loc, a, id, msg, isdeprecated);
+            md = new AST.ModuleDeclaration(loc, a.move(), id, msg, isdeprecated);
 
             if (token.value != TOK.semicolon)
                 error("`;` expected following module declaration instead of `%s`", token.toChars());
@@ -1038,11 +1036,11 @@ final class Parser(AST) : Lexer
 
                     // optional qualified package identifier to bind
                     // protection to
-                    AST.Identifiers* pkg_prot_idents = null;
+                    AST.Identifiers pkg_prot_idents;
                     if (pAttrs.protection.kind == AST.Prot.Kind.package_ && token.value == TOK.leftParentheses)
                     {
                         pkg_prot_idents = parseQualifiedIdentifier("protection package");
-                        if (pkg_prot_idents)
+                        if (pkg_prot_idents.dim >0)
                             check(TOK.rightParentheses);
                         else
                         {
@@ -1057,8 +1055,8 @@ final class Parser(AST) : Lexer
                     a = parseBlock(pLastDecl, pAttrs);
                     if (pAttrs.protection.kind != AST.Prot.Kind.undefined)
                     {
-                        if (pAttrs.protection.kind == AST.Prot.Kind.package_ && pkg_prot_idents)
-                            s = new AST.ProtDeclaration(attrloc, pkg_prot_idents, a);
+                        if (pAttrs.protection.kind == AST.Prot.Kind.package_ && pkg_prot_idents.dim > 0)
+                            s = new AST.ProtDeclaration(attrloc, pkg_prot_idents.move(), a);
                         else
                             s = new AST.ProtDeclaration(attrloc, pAttrs.protection, a);
 
@@ -2337,9 +2335,9 @@ final class Parser(AST) : Lexer
      * Returns:
      *     array of identifiers with actual qualified one stored last
      */
-    private AST.Identifiers* parseQualifiedIdentifier(const(char)* entity)
+    private AST.Identifiers parseQualifiedIdentifier(const(char)* entity)
     {
-        AST.Identifiers* qualified = null;
+        AST.Identifiers qualified;
 
         do
         {
@@ -2347,12 +2345,10 @@ final class Parser(AST) : Lexer
             if (token.value != TOK.identifier)
             {
                 error("`%s` expected as dot-separated identifiers, got `%s`", entity, token.toChars());
-                return null;
+                return qualified;
             }
 
             Identifier id = token.ident;
-            if (!qualified)
-                qualified = new AST.Identifiers();
             qualified.push(id);
 
             nextToken();
@@ -3396,14 +3392,14 @@ final class Parser(AST) : Lexer
         case TOK.class_:
             if (!id)
                 error(loc, "anonymous classes not allowed");
-            bool inObject = md && !md.packages && md.id == Id.object;
+            bool inObject = md && md.packages.dim == 0 && md.id == Id.object;
             a = new AST.ClassDeclaration(loc, id, baseclasses, members, inObject);
             break;
 
         case TOK.struct_:
             if (id)
             {
-                bool inObject = md && !md.packages && md.id == Id.object;
+                bool inObject = md && md.packages.dim == 0 && md.id == Id.object;
                 a = new AST.StructDeclaration(loc, id, inObject);
                 a.members = members;
             }
@@ -3484,7 +3480,7 @@ final class Parser(AST) : Lexer
 
             const loc = token.loc;
             Identifier id = token.ident;
-            AST.Identifiers* a = null;
+            AST.Identifiers a;
             nextToken();
             if (!aliasid && token.value == TOK.assign)
             {
@@ -3493,8 +3489,6 @@ final class Parser(AST) : Lexer
             }
             while (token.value == TOK.dot)
             {
-                if (!a)
-                    a = new AST.Identifiers();
                 a.push(id);
                 nextToken();
                 if (token.value != TOK.identifier)
@@ -3506,7 +3500,7 @@ final class Parser(AST) : Lexer
                 nextToken();
             }
 
-            auto s = new AST.Import(loc, a, id, aliasid, isstatic);
+            auto s = new AST.Import(loc, a.move(), id, aliasid, isstatic);
             decldefs.push(s);
 
             /* Look for

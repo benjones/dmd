@@ -170,11 +170,11 @@ void removeHdrFilesAndFail(ref Param params, ref Modules modules)
  * Returns:
  *  the filename of the child package or module
  */
-private const(char)[] getFilename(Identifiers* packages, Identifier ident)
+private const(char)[] getFilename(const ref Identifiers packages, Identifier ident)
 {
     const(char)[] filename = ident.toString();
 
-    if (packages == null || packages.dim == 0)
+    if (packages.dim == 0)
         return filename;
 
     OutBuffer buf;
@@ -204,7 +204,7 @@ private const(char)[] getFilename(Identifiers* packages, Identifier ident)
         dotmods.writeByte('.');
     }
 
-    foreach (pid; *packages)
+    foreach (pid; packages)
     {
         const p = pid.toString();
         buf.writestring(p);
@@ -270,52 +270,50 @@ extern (C++) class Package : ScopeDsymbol
      *      *pparent        the rightmost package, i.e. pkg2, or NULL if no packages
      *      *ppkg           the leftmost package, i.e. pkg1, or NULL if no packages
      */
-    extern (D) static DsymbolTable resolve(Identifiers* packages, Dsymbol* pparent, Package* ppkg)
+    extern (D) static DsymbolTable resolve(Identifier[] packages, Dsymbol* pparent, Package* ppkg)
     {
         DsymbolTable dst = Module.modules;
         Dsymbol parent = null;
         //printf("Package::resolve()\n");
         if (ppkg)
             *ppkg = null;
-        if (packages)
+
+        foreach(pid; packages)
         {
-            for (size_t i = 0; i < packages.dim; i++)
+            Package pkg;
+            Dsymbol p = dst.lookup(pid);
+            if (!p)
             {
-                Identifier pid = (*packages)[i];
-                Package pkg;
-                Dsymbol p = dst.lookup(pid);
-                if (!p)
-                {
-                    pkg = new Package(Loc.initial, pid);
-                    dst.insert(pkg);
-                    pkg.parent = parent;
+                pkg = new Package(Loc.initial, pid);
+                dst.insert(pkg);
+                pkg.parent = parent;
+                pkg.symtab = new DsymbolTable();
+            }
+            else
+            {
+                pkg = p.isPackage();
+                assert(pkg);
+                // It might already be a module, not a package, but that needs
+                // to be checked at a higher level, where a nice error message
+                // can be generated.
+                // dot net needs modules and packages with same name
+                // But we still need a symbol table for it
+                if (!pkg.symtab)
                     pkg.symtab = new DsymbolTable();
-                }
-                else
-                {
-                    pkg = p.isPackage();
-                    assert(pkg);
-                    // It might already be a module, not a package, but that needs
-                    // to be checked at a higher level, where a nice error message
-                    // can be generated.
-                    // dot net needs modules and packages with same name
-                    // But we still need a symbol table for it
-                    if (!pkg.symtab)
-                        pkg.symtab = new DsymbolTable();
-                }
-                parent = pkg;
-                dst = pkg.symtab;
-                if (ppkg && !*ppkg)
-                    *ppkg = pkg;
-                if (pkg.isModule())
-                {
-                    // Return the module so that a nice error message can be generated
-                    if (ppkg)
-                        *ppkg = cast(Package)p;
-                    break;
-                }
+            }
+            parent = pkg;
+            dst = pkg.symtab;
+            if (ppkg && !*ppkg)
+                *ppkg = pkg;
+            if (pkg.isModule())
+            {
+                // Return the module so that a nice error message can be generated
+                if (ppkg)
+                    *ppkg = cast(Package)p;
+                break;
             }
         }
+
         if (pparent)
             *pparent = parent;
         return dst;
@@ -393,8 +391,8 @@ extern (C++) class Package : ScopeDsymbol
         for (Dsymbol s = this.parent; s; s = s.parent)
             packages.insert(0, s.ident);
 
-        if (lookForSourceFile(getFilename(&packages, ident)))
-            Module.load(Loc(), &packages, this.ident);
+        if (lookForSourceFile(getFilename(packages, ident)))
+            Module.load(Loc(), packages, this.ident);
         else
             isPkgMod = PKG.package_;
     }
@@ -575,9 +573,9 @@ extern (C++) final class Module : Package
         return new Module(Loc.initial, filename, ident, doDocComment, doHdrGen);
     }
 
-    static Module load(Loc loc, Identifiers* packages, Identifier ident)
+    static Module load(Loc loc, const ref Identifiers packages, Identifier ident)
     {
-        //printf("Module::load(ident = '%s')\n", ident.toChars());
+        printf("Module::load(ident = '%s', packages dim: %zu)\n", ident.toChars(), packages.dim);
         // Build module filename by turning:
         //  foo.bar.baz
         // into:
@@ -594,13 +592,10 @@ extern (C++) final class Module : Package
         if (global.params.verbose)
         {
             OutBuffer buf;
-            if (packages)
+            foreach (pid; packages)
             {
-                foreach (pid; *packages)
-                {
-                    buf.writestring(pid.toString());
-                    buf.writeByte('.');
-                }
+                buf.writestring(pid.toString());
+                buf.writeByte('.');
             }
             buf.printf("%s\t(%s)", ident.toChars(), m.srcfile.toChars());
             message("import    %s", buf.peekChars());
@@ -1051,7 +1046,7 @@ extern (C++) final class Module : Package
              */
             this.ident = md.id;
             Package ppack = null;
-            dst = Package.resolve(md.packages, &this.parent, &ppack);
+            dst = Package.resolve(md.packages[], &this.parent, &ppack);
             assert(dst);
             Module m = ppack ? ppack.isModule() : null;
             if (m && (strcmp(m.srcfile.name(), "package.d") != 0 &&
@@ -1179,7 +1174,7 @@ extern (C++) final class Module : Package
         if (members.dim == 0 || (*members)[0].ident != Id.object ||
             (*members)[0].isImport() is null)
         {
-            auto im = new Import(Loc.initial, null, Id.object, null, 0);
+            auto im = new Import(Loc.initial, Identifiers(), Id.object, null, 0);
             members.shift(im);
         }
         if (!symtab)
@@ -1520,14 +1515,14 @@ extern (C++) struct ModuleDeclaration
 {
     Loc loc;
     Identifier id;
-    Identifiers* packages;  // array of Identifier's representing packages
+    Identifiers packages;  // array of Identifier's representing packages
     bool isdeprecated;      // if it is a deprecated module
     Expression msg;
 
-    extern (D) this(const ref Loc loc, Identifiers* packages, Identifier id, Expression msg, bool isdeprecated)
+    extern (D) this(const ref Loc loc, Identifiers packages, Identifier id, Expression msg, bool isdeprecated)
     {
         this.loc = loc;
-        this.packages = packages;
+        this.packages = packages.move();
         this.id = id;
         this.msg = msg;
         this.isdeprecated = isdeprecated;
@@ -1536,14 +1531,12 @@ extern (C++) struct ModuleDeclaration
     extern (C++) const(char)* toChars() const
     {
         OutBuffer buf;
-        if (packages && packages.dim)
+        foreach (pid; packages)
         {
-            foreach (pid; *packages)
-            {
-                buf.writestring(pid.toString());
-                buf.writeByte('.');
-            }
+            buf.writestring(pid.toString());
+            buf.writeByte('.');
         }
+
         buf.writestring(id.toString());
         return buf.extractChars();
     }

@@ -677,6 +677,17 @@ extern (C++) class Dsymbol : ASTNode
         return b;
     }
 
+    extern (D) static Dsymbols arraySyntaxCopy(Dsymbols a)
+    {
+        auto b = Dsymbols(a.dim);
+        foreach (ref i, ai; a)
+        {
+            b[i] = ai.syntaxCopy(null);
+        }
+        return b;
+    }
+
+
     Identifier getIdent()
     {
         return ident;

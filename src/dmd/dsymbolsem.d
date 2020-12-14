@@ -1638,12 +1638,12 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
                 // scope. This access check is necessary when using FQN b/c
                 // we're using a single global package tree.
                 // https://issues.dlang.org/show_bug.cgi?id=313
-                if (imp.packages)
+                if (imp.packages.dim > 0)
                 {
                     // import a.b.c.d;
                     auto p = imp.pkg; // a
                     scopesym.addAccessiblePackage(p, imp.protection);
-                    foreach (id; (*imp.packages)[1 .. imp.packages.dim]) // [b, c]
+                    foreach (id; imp.packages[1 .. $]) // [b, c]
                     {
                         p = cast(Package) p.symtab.lookup(id);
                         // https://issues.dlang.org/show_bug.cgi?id=17991
@@ -1740,13 +1740,9 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
                 ob.writeByte(' ');
             }
             ob.writestring(": ");
-            if (imp.packages)
+            foreach(pid; imp.packages)
             {
-                for (size_t i = 0; i < imp.packages.dim; i++)
-                {
-                    Identifier pid = (*imp.packages)[i];
-                    ob.printf("%s.", pid.toChars());
-                }
+                ob.printf("%s.", pid.toChars());
             }
             ob.writestring(imp.id.toString());
             ob.writestring(" (");

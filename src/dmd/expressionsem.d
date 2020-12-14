@@ -2491,9 +2491,9 @@ private Module loadStdMath()
     __gshared Import impStdMath = null;
     if (!impStdMath)
     {
-        auto a = new Identifiers();
+        Identifiers a;
         a.push(Id.std);
-        auto s = new Import(Loc.initial, a, Id.math, null, false);
+        auto s = new Import(Loc.initial, a.move(), Id.math, null, false);
         // Module.load will call fatal() if there's no std.math available.
         // Gag the error here, pushing the error handling to the caller.
         uint errors = global.startGagging();

@@ -14,6 +14,7 @@
 module dmd.access;
 
 import dmd.aggregate;
+import dmd.arraytypes;
 import dmd.dclass;
 import dmd.declaration;
 import dmd.dmodule;
@@ -82,7 +83,7 @@ private bool hasPackageAccess(Module mod, Dsymbol s)
         {
             if (auto m = s.isModule())
             {
-                DsymbolTable dst = Package.resolve(m.md ? m.md.packages : null, null, null);
+                DsymbolTable dst = Package.resolve(m.md ? m.md.packages[] : [], null, null);
                 assert(dst);
                 Dsymbol s2 = dst.lookup(m.ident);
                 assert(s2);

@@ -30,7 +30,7 @@ extern (C++) final class Import : Dsymbol
 {
     /* static import aliasId = pkg1.pkg2.id : alias1 = name1, alias2 = name2;
      */
-    Identifiers* packages;  // array of Identifier's representing packages
+    Identifiers packages;  // array of Identifier's representing packages
     Identifier id;          // module Identifier
     Identifier aliasId;
     int isstatic;           // !=0 if static import
@@ -46,7 +46,7 @@ extern (C++) final class Import : Dsymbol
     // corresponding AliasDeclarations for alias=name pairs
     AliasDeclarations aliasdecls;
 
-    extern (D) this(const ref Loc loc, Identifiers* packages, Identifier id, Identifier aliasId, int isstatic)
+    extern (D) this(const ref Loc loc, Identifiers packages, Identifier id, Identifier aliasId, int isstatic)
     {
         Identifier selectIdent()
         {
@@ -56,10 +56,10 @@ extern (C++) final class Import : Dsymbol
                 // import [aliasId] = std.stdio;
                 return aliasId;
             }
-            else if (packages && packages.dim)
+            else if (packages.dim > 0)
             {
                 // import [std].stdio;
-                return (*packages)[0];
+                return packages[0];
             }
             else
             {
@@ -74,17 +74,13 @@ extern (C++) final class Import : Dsymbol
         version (none)
         {
             printf("Import::Import(");
-            if (packages && packages.dim)
+            foreach(id; packages)
             {
-                for (size_t i = 0; i < packages.dim; i++)
-                {
-                    Identifier id = (*packages)[i];
-                    printf("%s.", id.toChars());
-                }
+                printf("%s.", id.toChars());
             }
             printf("%s)\n", id.toChars());
         }
-        this.packages = packages;
+        this.packages = packages.move();
         this.id = id;
         this.aliasId = aliasId;
         this.isstatic = isstatic;
@@ -115,7 +111,7 @@ extern (C++) final class Import : Dsymbol
     override Dsymbol syntaxCopy(Dsymbol s)
     {
         assert(!s);
-        auto si = new Import(loc, packages, id, aliasId, isstatic);
+        auto si = new Import(loc, packages.copyAsValue(), id, aliasId, isstatic);
         si.comment = comment;
         for (size_t i = 0; i < names.dim; i++)
         {
@@ -134,7 +130,7 @@ extern (C++) final class Import : Dsymbol
         //printf("Import::load('%s') %p\n", toPrettyChars(), this);
         // See if existing module
         const errors = global.errors;
-        DsymbolTable dst = Package.resolve(packages, null, &pkg);
+        DsymbolTable dst = Package.resolve(packages[], null, &pkg);
         version (none)
         {
             if (pkg && pkg.isModule())
