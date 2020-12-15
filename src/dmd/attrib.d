@@ -46,6 +46,8 @@ import dmd.target; // for target.systemLinkage
 import dmd.tokens;
 import dmd.visitor;
 
+import core.stdc.stdio;
+
 /***********************************************************
  * Abstract attribute applied to Dsymbol's used as a common
  * ancestor for storage classes (StorageClassDeclaration),
@@ -130,7 +132,7 @@ extern (C++) abstract class AttribDeclaration : Dsymbol
     override void setScope(Scope* sc)
     {
         Dsymbols* d = include(sc);
-        //printf("\tAttribDeclaration::setScope '%s', d = %p\n",toChars(), d);
+        printf("\tAttribDeclaration::setScope '%s', d = %p\n",toPrettyChars(), d);
         if (d)
         {
             Scope* sc2 = newScope(sc);
@@ -582,7 +584,7 @@ extern (C++) final class CPPNamespaceDeclaration : AttribDeclaration
 extern (C++) final class ProtDeclaration : AttribDeclaration
 {
     Prot protection;                /// the visibility
-    Identifiers pkg_identifiers;   /// identifiers for `package(foo.bar)` or null
+    Identifiers pkg_identifiers;   /// identifiers for `package(foo.bar)` or empty
 
     /**
      * Params:
@@ -608,16 +610,17 @@ extern (C++) final class ProtDeclaration : AttribDeclaration
         super(loc, null, decl);
         this.protection.kind = Prot.Kind.package_;
         this.pkg_identifiers = pkg_identifiers.move();
-        if (pkg_identifiers.dim > 0)
+        if (this.pkg_identifiers.dim > 0)
         {
             Dsymbol tmp;
-            Package.resolve(pkg_identifiers[], &tmp, null);
+            Package.resolve(this.pkg_identifiers[], &tmp, null);
             protection.pkg = tmp ? tmp.isPackage() : null;
         }
     }
 
     override Dsymbol syntaxCopy(Dsymbol s)
     {
+        printf("syntaxcopy of prot decl this(%s), s: %s\n", toPrettyChars(true), s ? s.toPrettyChars : "null");
         assert(!s);
         if (protection.kind == Prot.Kind.package_)
             return new ProtDeclaration(this.loc, pkg_identifiers.copyAsValue(), Dsymbol.arraySyntaxCopy(decl));
@@ -627,6 +630,11 @@ extern (C++) final class ProtDeclaration : AttribDeclaration
 
     override Scope* newScope(Scope* sc)
     {
+        printf("newscope of prot decl this(%s)\n", toPrettyChars(true));
+        printf("pkg idents length: %zu\n", pkg_identifiers.length);
+        foreach(pid; pkg_identifiers){
+            printf("%s\n", pid.toChars);
+        }
         if (pkg_identifiers.dim > 0)
             dsymbolSemantic(this, sc);
         return createNewScope(sc, sc.stc, sc.linkage, sc.cppmangle, this.protection, 1, sc.aligndecl, sc.inlining);
@@ -634,6 +642,11 @@ extern (C++) final class ProtDeclaration : AttribDeclaration
 
     override void addMember(Scope* sc, ScopeDsymbol sds)
     {
+        /*printf("addMember %s to %s\n", sds.toPrettyChars, toPrettyChars(true));
+        printf("pkg_identifiers were:\n");
+        foreach(pid; pkg_identifiers){
+            printf("%s\n", pid.toChars);
+            }*/
         if (pkg_identifiers.dim > 0)
         {
             Dsymbol tmp;

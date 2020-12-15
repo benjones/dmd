@@ -2594,6 +2594,12 @@ extern (C++) final class ImportStatement : Statement
     {
         super(loc, STMT.Import);
         this.imports = imports;
+        printf("made an ImportStatement\n");
+        printf("imports are: \n");
+        if(imports)
+            foreach(imp; *imports){
+                printf("%s\n", imp.toChars);
+            }
     }
 
     override Statement syntaxCopy()

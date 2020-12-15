@@ -22,7 +22,7 @@ import dmd.root.string;
 private extern(C) void qsort(scope void* base, size_t nmemb, size_t size, _compare_fp_t compar) nothrow @nogc;
 
 
-debug
+static if(true)//debug
 {
     debug = stomp; // flush out dangling pointer problems by stomping on unused memory
 }
@@ -51,7 +51,16 @@ public:
 
     ~this() pure nothrow
     {
+        import core.stdc.stdio;
+        debug (stomp){
+            try{
+                printf("deleting an array with contents: %s\n", toChars);
+            } catch(Exception e){
+                printf("uh oh");
+            }
+        }
         debug (stomp) memset(data.ptr, 0xFF, data.length);
+
         if (data.ptr != &smallarray[0])
             mem.xfree(data.ptr);
     }
@@ -59,19 +68,25 @@ public:
     ///Allow the array to be passed to functions by value, since it's not copyable
     Array move()
     {
+        import core.stdc.stdio;
         Array ret;
+        printf("this before move: %s\n", toChars);
         ret.length = length;
-        if (data.ptr == smallarray.ptr)
+        if (data.ptr == &smallarray[0])
         {
-            ret.smallarray[0..length] = data[0..length];
-            ret.data = ret.smallarray[];
+            ret.data = ret.smallarray;
+            memcpy(ret.data.ptr, data.ptr, length * T.sizeof);
         }
         else
         {
             ret.data = data;
-            data = smallarray[]; //forget its ptr so it doesn't get deallocated
+            data = smallarray; //forget its ptr so it doesn't get deallocated
         }
         length = 0;
+        printf("ret: %s\n", ret.toChars);
+        printf("this before returning: %s\n", toChars);
+        printf("ret addr: %p ret data: %p\n", &ret, ret.data.ptr);
+        printf("this addr: %p this data: %p\n", &this, this.data.ptr);
         return ret;
     }
 
@@ -294,8 +309,10 @@ public:
         return a;
     }
 
-    Array!T copyAsValue() const pure nothrow
+    Array!T copyAsValue() const  nothrow
     {
+        import core.stdc.stdio;
+        printf("copying an array!\n");
         auto a = Array!T(length);
         memcpy(a.data.ptr, data.ptr, length * T.sizeof);
         return a;

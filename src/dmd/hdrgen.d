@@ -853,6 +853,7 @@ public:
 
     override void visit(Import imp)
     {
+        printf("headergen visit for %s\n", imp.id.toChars);
         if (hgs.hdrgen && imp.id == Id.object)
             return; // object is imported by default
         if (imp.isstatic)
@@ -862,8 +863,11 @@ public:
         {
             buf.printf("%s = ", imp.aliasId.toChars());
         }
+        printf("packages length: %zu\n", imp.packages.length);
         foreach (const pid; imp.packages)
         {
+            printf("%p.\n", pid.toChars());
+            printf("%s.\n", pid.toChars());
             buf.printf("%s.", pid.toChars());
         }
         buf.writestring(imp.id.toString());

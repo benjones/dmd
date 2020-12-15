@@ -473,6 +473,7 @@ private int tryMain(size_t argc, const(char)** argv, ref Param params)
             m.deleteObjFile();
 
         m.parse();
+        printf("done parsing %s\n", m.toChars);
         if (m.isHdrFile)
         {
             // Remove m's object file from list of object files
@@ -538,9 +539,21 @@ private int tryMain(size_t argc, const(char)** argv, ref Param params)
     // load all unconditional imports for better symbol resolving
     foreach (m; modules)
     {
+
         if (params.verbose)
             message("importall %s", m.toChars());
         m.importAll(null);
+        printf("ast after importAll\n");
+        import dmd.hdrgen;
+
+        auto buf = OutBuffer();
+        buf.doindent = 1;
+        moduleToBuffer(&buf, m);
+
+        printf("ast for %s\n", m.toChars);
+        printf("%s\n", buf[].ptr);
+
+
     }
     if (global.errors)
         removeHdrFilesAndFail(params, modules);

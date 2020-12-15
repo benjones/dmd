@@ -172,6 +172,10 @@ void removeHdrFilesAndFail(ref Param params, ref Modules modules)
  */
 private const(char)[] getFilename(const ref Identifiers packages, Identifier ident)
 {
+    printf("getFilename, ident: %s\n", ident.toChars);
+    foreach(pname; packages){
+        printf("%s\n", pname.toChars);
+    }
     const(char)[] filename = ident.toString();
 
     if (packages.dim == 0)
@@ -274,7 +278,10 @@ extern (C++) class Package : ScopeDsymbol
     {
         DsymbolTable dst = Module.modules;
         Dsymbol parent = null;
-        //printf("Package::resolve()\n");
+        printf("Package::resolve(), packages:\n");
+        foreach(i, pkg; packages){
+            printf("i: %zu : %s\n", i, pkg.toChars);
+        }
         if (ppkg)
             *ppkg = null;
 
@@ -382,6 +389,7 @@ extern (C++) class Package : ScopeDsymbol
      */
     final void resolvePKGunknown()
     {
+        printf("looking for package.d file, %s\n", toChars);
         if (isModule())
             return;
         if (isPkgMod != PKG.unknown)
@@ -390,7 +398,10 @@ extern (C++) class Package : ScopeDsymbol
         Identifiers packages;
         for (Dsymbol s = this.parent; s; s = s.parent)
             packages.insert(0, s.ident);
-
+        printf("will look for source files: \n");
+        foreach(pkgname; packages){
+            printf("%s\n", pkgname.toChars);
+        }
         if (lookForSourceFile(getFilename(packages, ident)))
             Module.load(Loc(), packages, this.ident);
         else
@@ -576,6 +587,9 @@ extern (C++) final class Module : Package
     static Module load(Loc loc, const ref Identifiers packages, Identifier ident)
     {
         printf("Module::load(ident = '%s', packages dim: %zu)\n", ident.toChars(), packages.dim);
+        foreach(i, pack; packages){
+            printf("package i %zu: %s\n", i, pack.toChars);
+        }
         // Build module filename by turning:
         //  foo.bar.baz
         // into:
@@ -601,7 +615,7 @@ extern (C++) final class Module : Package
             message("import    %s", buf.peekChars());
         }
         m = m.parse();
-
+        printf("parsed module %s\n", ident.toChars);
         // Call onImport here because if the module is going to be compiled then we
         // need to determine it early because it affects semantic analysis. This is
         // being done after parsing the module so the full module name can be taken
@@ -611,6 +625,7 @@ extern (C++) final class Module : Package
             m.importedFrom = m;
             assert(m.isRoot());
         }
+        printf("returning module %s\n", m.toChars);
         return m;
     }
 
@@ -1148,7 +1163,7 @@ extern (C++) final class Module : Package
 
     override void importAll(Scope* prevsc)
     {
-        //printf("+Module::importAll(this = %p, '%s'): parent = %p\n", this, toChars(), parent);
+        printf("+Module::importAll(this = %p, '%s'): parent = %p\n", this, toChars(), parent);
         if (_scope)
             return; // already done
         if (isDocFile)
@@ -1174,7 +1189,9 @@ extern (C++) final class Module : Package
         if (members.dim == 0 || (*members)[0].ident != Id.object ||
             (*members)[0].isImport() is null)
         {
-            auto im = new Import(Loc.initial, Identifiers(), Id.object, null, 0);
+            printf("making an import with empty Identifiers in module importall\n");
+            auto im = new Import(Loc.initial, Identifiers(0), Id.object, null, 0);
+            printf("finished making import with empty identifier\n");
             members.shift(im);
         }
         if (!symtab)
@@ -1194,15 +1211,20 @@ extern (C++) final class Module : Package
          * before any semantic() on any of them.
          */
         setScope(sc); // remember module scope for semantic
+        import dmd.asttypename;
         for (size_t i = 0; i < members.dim; i++)
         {
             Dsymbol s = (*members)[i];
+            printf("about to setScope for member: %s, %s\n", s.toPrettyChars, astTypeName(s).ptr);
             s.setScope(sc);
+            printf("done\n");
         }
         for (size_t i = 0; i < members.dim; i++)
         {
             Dsymbol s = (*members)[i];
+            printf("about to importAll for member: %s, %s\n", s.toChars, astTypeName(s).ptr);
             s.importAll(sc);
+            printf("done\n");
         }
         sc = sc.pop();
         sc.pop(); // 2 pops because Scope::createGlobal() created 2
@@ -1526,7 +1548,10 @@ extern (C++) struct ModuleDeclaration
         this.id = id;
         this.msg = msg;
         this.isdeprecated = isdeprecated;
+        printf("made ModuleDeclaration: %s\n", toChars);
     }
+
+    @disable this(this);
 
     extern (C++) const(char)* toChars() const
     {

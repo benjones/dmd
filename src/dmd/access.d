@@ -14,7 +14,6 @@
 module dmd.access;
 
 import dmd.aggregate;
-import dmd.arraytypes;
 import dmd.dclass;
 import dmd.declaration;
 import dmd.dmodule;

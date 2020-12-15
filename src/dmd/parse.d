@@ -3467,7 +3467,7 @@ final class Parser(AST) : Lexer
         if (isstatic)
             nextToken();
 
-        //printf("Parser::parseImport()\n");
+        printf("Parser::parseImport()\n");
         do
         {
         L1:
@@ -3500,8 +3500,18 @@ final class Parser(AST) : Lexer
                 nextToken();
             }
 
+            printf("about to make an import with id %s and pkg ids\n", id.toChars);
+            foreach(aid; a){
+                printf("%p %s\n", aid.toChars, aid.toChars);
+            }
             auto s = new AST.Import(loc, a.move(), id, aliasid, isstatic);
+            printf("import's packages address after creation: %p and its data ptr: %p\n", &(s.packages), s.packages.tdata);
             decldefs.push(s);
+            printf("a after being moved from:\n");
+            foreach(aid; a){
+                printf("%s\n", aid.toChars);
+            }
+
 
             /* Look for
              *      : alias=name, alias=name;
@@ -3552,7 +3562,7 @@ final class Parser(AST) : Lexer
             error("`;` expected");
             nextToken();
         }
-
+        printf("parsed %zu import expressions\n", decldefs.length);
         return decldefs;
     }
 

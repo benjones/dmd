@@ -71,7 +71,7 @@ import dmd.templateparamsem;
 import dmd.typesem;
 import dmd.visitor;
 
-enum LOG = false;
+enum LOG = true;//false;
 
 /*****************************************
  * Create inclusive postblit for struct by aggregating
@@ -1572,7 +1572,7 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
 
     override void visit(Import imp)
     {
-        //printf("Import::semantic('%s') %s\n", toPrettyChars(), id.toChars());
+        printf("Import::semantic('%s') %s\n", imp.toPrettyChars(), imp.id.toChars());
         if (imp.semanticRun > PASS.init)
             return;
 

@@ -24,6 +24,8 @@ import dmd.identifier;
 import dmd.mtype;
 import dmd.visitor;
 
+import core.stdc.stdio;
+
 /***********************************************************
  */
 extern (C++) final class Import : Dsymbol
@@ -71,20 +73,22 @@ extern (C++) final class Import : Dsymbol
         super(loc, selectIdent());
 
         assert(id);
-        version (none)
-        {
-            printf("Import::Import(");
-            foreach(id; packages)
-            {
-                printf("%s.", id.toChars());
-            }
-            printf("%s)\n", id.toChars());
-        }
         this.packages = packages.move();
         this.id = id;
         this.aliasId = aliasId;
         this.isstatic = isstatic;
         this.protection = Prot.Kind.private_; // default to private
+        static if(true)// (none)
+        {
+            import core.stdc.stdio;
+            printf("Import::Import(packages: ");
+            foreach(pid; this.packages)
+            {
+                printf("%s. %p\n", pid.toChars(), pid.toChars);
+            }
+            printf(" id: %s)\n", id.toChars());
+        }
+
     }
 
     extern (D) void addAlias(Identifier name, Identifier _alias)
@@ -110,8 +114,14 @@ extern (C++) final class Import : Dsymbol
     // copy only syntax trees
     override Dsymbol syntaxCopy(Dsymbol s)
     {
+        printf("Import::syntaxCopy(%s)\n", s ? s.toChars : "s is null" );
+        foreach(i, pack; packages){
+            printf("package i %zu: %s\n", i, pack.toChars);
+        }
+
         assert(!s);
         auto si = new Import(loc, packages.copyAsValue(), id, aliasId, isstatic);
+
         si.comment = comment;
         for (size_t i = 0; i < names.dim; i++)
         {
@@ -127,10 +137,21 @@ extern (C++) final class Import : Dsymbol
      */
     bool load(Scope* sc)
     {
-        //printf("Import::load('%s') %p\n", toPrettyChars(), this);
+        printf("Import::load('%s') %p\n", toPrettyChars(), this);
+        printf("dmodule call.load(scope), about to call Package.resolve packages length: %zu\n", packages.dim);
+        foreach(i, pack; packages){
+            printf("package i %zu: %s\n", i, pack.toChars);
+        }
+
         // See if existing module
         const errors = global.errors;
         DsymbolTable dst = Package.resolve(packages[], null, &pkg);
+        printf("Import::load('%s') %p after call to resolve\n", toPrettyChars(), this);
+        printf("dmodule call.load(scope), just called Package.resolve packages length: %zu\n", packages.dim);
+        foreach(i, pack; packages){
+            printf("package i %zu: %s %p\n", i, pack.toChars, pack.toChars);
+        }
+
         version (none)
         {
             if (pkg && pkg.isModule())
@@ -155,8 +176,19 @@ extern (C++) final class Import : Dsymbol
                 {
                     if (p.isPkgMod == PKG.unknown)
                     {
+
                         uint preverrors = global.errors;
+                        printf("dmodule call.load(scope), about to call Module.load packages length: %zu\n", packages.dim);
+                        foreach(i, pack; packages){
+                            printf("package i %zu: %s\n", i, pack.toChars);
+        }
+
                         mod = Module.load(loc, packages, id);
+                        printf("dmodule call.load(scope), just called Module.load packages length: %zu\n", packages.dim);
+                        foreach(i, pack; packages){
+                            printf("package i %zu: %s\n", i, pack.toChars);
+                        }
+
                         if (!mod)
                             p.isPkgMod = PKG.package_;
                         else
@@ -195,7 +227,18 @@ extern (C++) final class Import : Dsymbol
         if (!mod)
         {
             // Load module
+            import core.stdc.stdio;
+            printf("dmodule call.load(scope)for %s  about to Moudle.load l231 packages length: %zu\n", toPrettyChars, packages.dim);
+            foreach(i, pack; packages){
+                printf("package i %zu: %s\n", i, pack.toChars);
+            }
+
             mod = Module.load(loc, packages, id);
+            printf("dmodule call.load(scope) just called Modlue.load(l237) packages length: %zu\n", packages.dim);
+            foreach(i, pack; packages){
+                printf("package i %zu: %s\n", i, pack.toChars);
+            }
+
             if (mod)
             {
                 // id may be different from mod.ident, if so then insert alias
@@ -227,7 +270,13 @@ extern (C++) final class Import : Dsymbol
 
         if (sc.stc & STC.static_)
             isstatic = true;
+        printf("importAll, about to call importAll(null)\n");
+        foreach(i, pack; packages){
+            printf("package i %zu: %s\n", i, pack.toChars);
+        }
+
         mod.importAll(null);
+        printf("done with importall(null)\n");
         mod.checkImportDeprecation(loc, sc);
         if (sc.explicitProtection)
             protection = sc.protection;
